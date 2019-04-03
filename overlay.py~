@@ -1,0 +1,68 @@
+import sys
+import os
+import ROOT as R
+
+
+plottype=sys.argv[1]
+title=sys.argv[2]
+
+src="/global/scratch/rahmans/root/beam_analysis/ucoil_length_right"
+tag=["col2_15cm_NBS_oldraster", "col2_15cm_BS_oldraster", "col2_15cm_BS_newraster"]
+particle=["all","e-","e+","y", "p", "n", "pi0","pi-","pi+"]
+color={}
+style={}
+
+color["all"]=1
+color["e-"]=4
+color["e+"]=2
+color["y"]=5
+color["p"]=6
+color["n"]=3
+color["pi0"]=28
+color["pi-"]=7
+color["pi+"]=46
+
+style["col2_15cm_NBS_oldraster"]=1
+style["col2_15cm_BS_oldraster"]=2
+style["col2_15cm_BS_newraster"]=3
+
+
+c=R.TCanvas("c","c",800,800)
+c.SetLogy()
+f=[]
+histo=[]
+
+h=R.THStack(plottype,title);
+l=R.TLegend(0.75,0.75,0.9,0.9, "PID", "NDC")
+count=0
+size=len(particle)
+integrals=open(plottype+".txt","w+")
+
+for part in particle:
+	for filename in tag:
+                f.append(R.TFile(src+"/"+filename+"_"+part+".root"))
+                histo.append(f[count].Get(plottype))
+		if filename=="col2_15cm_BS_newraster":
+			l.AddEntry(histo[count], part,"L")
+		histo[count].SetLineColor(color[part])
+		histo[count].SetLineWidth(style[filename])
+                integrals.write(str(histo[count].Integral())+"\n")
+		h.Add(histo[count])
+                count=count+1
+                print(str(count)+"\n")
+	
+
+
+h.Draw("HISTnostack")
+l.Draw()	
+c.Print(plottype+".png")
+integrals.close()
+
+		
+
+
+
+
+
+
+

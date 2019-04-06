@@ -22,112 +22,53 @@
 // root> T->Process("processD.C")
 // root> T->Process("processD.C","some options")
 // root> T->Process("processD.C+")
+//
 
 
 #include "processD.h"
 #include <TH2.h>
 #include <TStyle.h>
-#include <TCanvas.h>
-#include <iostream>
 
-std::vector<TH1F*> e_in_all; // 1D energy distribution histograms
-std::vector<TH1F*> r_all; // 1D energy weighted radial profile
-std::vector<TH1F*> r; // 1D energy weighted radial profile (>energy_cut)
-
-std::vector<TH2F*> xy_1k; // 2D energy weighted xy-profile (>energy_cut)
-std::vector<TH2F*> xy_1h; // 2D energy weighted xy-profile zoom 1 (>energy_cut)
-std::vector<TH2F*> xy_10; // 2D energy weighted xy-profile zoom 2 (>energy_cut)
-
-std::vector<TH2F*> zr; // 2D energy deposit weighted
-std::vector<TH2F*> zrv; // Source of the deposited energy
-
-Int_t nFiles;             // no of files
-Int_t evPerFile;          // no of events per file
-Double_t weight;          // weight=1/(nFiles*evPerFile)
-Int_t energy_cut;         // in this particular case we take energy_cut=1 MeV
-
-TFile* rootfile;
 
 TString folder;
 TString tag;
-TString particle;
-std::map<TString, Int_t> pid;
+TString generator;
 
-std::map<Int_t,Int_t> detIn;     // Mapping collimator coil det ids to an array index
+TFile* rootfile;
 
-Int_t numr;
-Float_t maxr;
+std::map<TString,Int_t> pid;
+
+std::map<Int_t,Float_t > openmin;
+std::map<Int_t, Float_t > transmin;
+std::map<Int_t, Float_t> closedmin;
+std::map<Int_t,Float_t > openmax;
+std::map<Int_t, Float_t > transmax;
+std::map<Int_t, Float_t> closedmax;
+
+
 
 void processD::Begin(TTree * /*tree*/)
 {
    // The Begin() function is called at the start of the query.
    // When running with PROOF Begin() is only called on the client.
    // The tree argument is deprecated (on PROOF 0 is passed).
-   
+
    TString option = GetOption();
    TObjArray *opt= option.Tokenize(",");
    folder=((TObjString *)(opt->At(0)))->String();
    tag= ((TObjString *)(opt->At(1)))->String();
-   particle=((TObjString *)(opt->At(2)))->String();
-   rootfile=new TFile(Form("%s/%s_%s.root",folder.Data(),tag.Data(),particle.Data()) , "RECREATE");
+   generator=((TObjString *)(opt->At(2)))->String();
+   rootfile=new TFile(Form("%s/%s_%s.root",folder.Data(),tag.Data(),generator.Data()) , "RECREATE");
    
    pid["e-"]=11;
-   pid["e+"]=-11;
-   pid["y"]=22;
-   pid["n"]=2112;
-   pid["p"]=2212;
-   pid["pi0"]=111;
-   pid["pi+"]=211;
-   pid["pi-"]=-211;
 
+   openmin[28]=935; openmax[28]=1040;
+   transmin[28]=960; transmax[28]=1075;
+   closedmin[28]=960; closedmax[28]=1100;
 
-   detIn[2001]=0; 
-   detIn[2006]=1;
-   detIn[2002]=2; 
-   detIn[2004]=3; 
-   detIn[2005]=4; 
-   for (int i=4001;i<=4007;i++) detIn[i]=5; 
-   for (int i=3001;i<=3014;i++) detIn[i]=6;
-   detIn[30]=7; 
-   Float_t startz[8]={5100, 5150,5800,8200,12790,5900,9000, 17900};
-   Float_t endz[8]= {5700,5300,6000,8400,12890,8100, 17500,29000};
-   Float_t startx[8]={0,0,0,0,0, 0,0,0};
-   Float_t endx[8]={50,80,2100,2100,500,300,500,1200};
-   Float_t startvx[8]={0,0,0,0,0,0,0,0};
-   Float_t endvx[8]={50,80,2100,2100,500,300,500,1200};
-   char part[8][16]={"col1","col1fin","col2","col4","col5","ucoil","dcoil","bpipe"};
-   
-
-   nFiles=200; // no of runs 
-   evPerFile=5000; // event per run
-   weight=1.0/(nFiles*evPerFile); // Counts/incident electron gives Hz/uA
-   energy_cut=1 ; // what is the minimum energy of incident electron you want to look at
-   numr=20; // number of radial bins for 1D energy plots
-   maxr=100.0; // max radius for 1D energy plots
-  
-   
-   for(int j=0;j<8;j++){
-   	zr.push_back(new TH2F(Form("zr_%s",part[j]), "Power Dep(MeV/e/(mm)^2)" , (int)(endz[j]-startz[j]), startz[j], endz[j],  (int)(endx[j]-startx[j]), startx[j], endx[j]));
-        zrv.push_back(new TH2F(Form("zrv_%s",part[j]), "Source Dep(Mev/e/(mm)^2)", 29000, 0, 29000, (int)(endvx[j]-startvx[j]), startvx[j], endvx[j]));
-   }
- 
-   for(int i=24;i<=29;i++){
-
-	r_all.push_back(new TH1F(Form("r_all_%i",i), "Incident Power (MeV/e/mm)", 100,0, 100));
-
-	r.push_back(new TH1F(Form("r_%i",i), "Incident Power (MeV/e/mm) [E_in>1MeV]", 100,0,100));
-	xy_1k.push_back(new TH2F(Form("xy_1k_%i",i), "Incident Power (MeV/e/(mm)^2) [E_in>1MeV]", 2000,-1000,1000,2000,-1000,1000));
-        xy_1h.push_back(new TH2F(Form("xy_1h_%i",i), "Incident Power (MeV/e/(mm)^2) [E_in>1MeV]", 200,-100,100,200,-100,100));
-        xy_10.push_back(new TH2F(Form("xy_10_%i",i), "Incident Power (MeV/e/(0.1mm)^2) [E_in>1MeV]", 200,-10,10,200,-10,10));
-
-        for (int j=0;j<numr;j++){
-        	e_in_all.push_back(new TH1F(Form("e_in_all_%i_%g",i,j*maxr/numr),Form("Rate (1/e) vs E_in (MeV), %g<=r<%g (mm)",j*maxr/numr,(j+1)*maxr/numr), 11000,0,11000));
-        }   
-
-   }
-
-
-
+   openmin[32]=885; openmax[32]=990;
+   transmin[32]=885; transmax[32]=990;
+   closedmin[32]=885; closedmax[32]=990;
 
 }
 
@@ -159,35 +100,7 @@ Bool_t processD::Process(Long64_t entry)
    //
    // The return value is currently not used.
 
-   fReader.SetLocalEntry(entry);
-   
-   for(int i=0;i<hit_det.GetSize();i++){
-
-   	if (particle!="all"&& hit_pid[i]!=pid[particle]) {continue;}   //  check if there is a particle cut and impose that cut
-
-	if(hit_det[i]<30) {     // check if the detector is a plane detector
-	
-		r_all[hit_det[i]-24]->Fill(hit_r[i], weight*hit_e[i]);
-        	if (hit_e[i]>energy_cut){
-			r[hit_det[i]-24]->Fill(hit_r[i],weight*hit_e[i]);
-			xy_1k[hit_det[i]-24]->Fill(hit_x[i],hit_y[i],weight*hit_e[i]);
-		        xy_1h[hit_det[i]-24]->Fill(hit_x[i],hit_y[i],weight*hit_e[i]);
-			xy_10[hit_det[i]-24]->Fill(hit_x[i],hit_y[i],weight*hit_e[i]);
-		}
-       		for (int j=0;j<numr;j++){
-                	if (hit_r[i]>=j*maxr/numr && hit_r[i]<(j+1)*maxr/numr) {
-               			e_in_all[(hit_det[i]-24)*numr+j]->Fill(hit_e[i], weight);
-			}
-        	}
-	}else{
-		zr[detIn[hit_det[i]]]->Fill(hit_z[i], hit_r[i], weight*hit_edep[i]);
-                zrv[detIn[hit_det[i]]]->Fill(hit_vz[i], sqrt(hit_vx[i]*hit_vx[i]+hit_vy[i]+hit_vy[i]), weight*hit_edep[i]);
-	}
-
-   
-   }
-
-
+   fReader.SetEntry(entry);
 
    return kTRUE;
 }
@@ -202,25 +115,10 @@ void processD::SlaveTerminate()
 
 void processD::Terminate()
 {
-   
-   for(int j=0;j<8;j++){
-   	zr[j]->Write("",TObject::kOverwrite);
-        zrv[j]->Write("",TObject::kOverwrite);
-   }
-
-   for(int i=24;i<30;i++){
-	r_all[i-24]->Write("",TObject::kOverwrite);
-	r[i-24]->Write("",TObject::kOverwrite);
-	xy_1k[i-24]->Write("",TObject::kOverwrite);
-	xy_1h[i-24]->Write("",TObject::kOverwrite);
-	xy_10[i-24]->Write("",TObject::kOverwrite);	
-        for (int j=0;j<numr;j++){
-        	e_in_all[(i-24)*numr+j]->Write("",TObject::kOverwrite);
-        }
-   }
 
    rootfile->Close();
    // The Terminate() function is the last function to be called during
    // a query. It always runs on the client, it can be used to present
    // the results graphically or save the results to file.
+
 }

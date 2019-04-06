@@ -12,7 +12,7 @@
 int wrapper(){
 
 TChain* T=new TChain("T");
-T->Add("/global/scratch/rahmans/scratch/beamStudy/beamUpstreamR0.0/col2_15cm_raster/5k/beam_1.root");
+T->Add("/global/scratch/rahmans/scratch/targetStudy/beamUpstreamR0.0/smallstat/t-750mmto750mm/moller.root");
 
 /*
 gROOT->SetBatch(kTRUE);
@@ -25,7 +25,7 @@ ROOT::TTreeProcessorMP pool(4);
 pool.Process(*T,*sel);
 //sel->GetOutputList()->Delete();
 */
-T->Process("/home/rahmans/analysis/BeamSteeringAnalysis/plane/processD.C+","/home/rahmans/analysis/BeamSteeringAnalysis/plane,default,e-");
+T->Process("/home/rahmans/analysis/TargetAnalysis/processD.C+","/global/scratch/rahmans/root/targetStudy,t-750mmto750mm,moller");
 
 return 0;
 }

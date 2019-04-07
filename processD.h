@@ -14,6 +14,8 @@
 #include <TTreeReader.h>
 #include <TTreeReaderValue.h>
 #include <TTreeReaderArray.h>
+#include <TVector2.h>
+#include <TMath.h>
 #include "remolltypes.hh"
 
 
